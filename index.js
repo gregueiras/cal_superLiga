@@ -133,18 +133,79 @@ function getGamesCalendar(auth, callback, games) {
 }
 
 function addGames(games, id, calendar) {
-  const events = createEvents(games)
+  const newEvents = createEvents(games)
   
-  events.forEach(event => {
+  getEvents(id, calendar).then( (events) => {
+    newEvents.forEach(event => {
+      const existingEvent = events.filter(ev => ev.summary === event.summary)[0]
+      if (existingEvent) {
+        processEvent(calendar, id, event, 'patch', existingEvent)
+      } else {
+        processEvent(calendar, id, event, 'insert')
+      }
+    })
+  }).catch( (error) => {
+    console.log(error)
+  })
+
+}
+
+function processEvent(calendar, calendarId, event, option, existingEvent) {
+  if (option === 'insert') {
     calendar.events.insert({
-      calendarId: id,
+      calendarId: calendarId,
       resource: event
-    }, (err, eventA) => {
+    }, (err) => {
       if (err) {
         console.log('There was an error contacting the Calendar service: ' + err)
         return
       }
       console.log('Event created: %s', event.summary)
+    })
+  } else if (option === 'patch') {
+    const sameDates = compareDates(existingEvent, event)
+
+    if (!sameDates) {
+      calendar.events.patch({
+        calendarId: calendarId,
+        eventId: existingEvent.id,
+        resource: event
+      }, (err) => {
+        if (err) {
+          console.log('There was an error contacting the Calendar service: ' + err)
+          return
+        }
+        console.log('Event updated: %s', event.summary)
+      })
+    } else {
+      console.log('No changes to the event')
+    }
+  }
+}
+
+function compareDates(eventA, eventB) {
+  const startA = Date.parse(eventA.start.dateTime)
+  const startB = Date.parse(eventB.start.dateTime)
+
+  const endA = Date.parse(eventA.end.dateTime)
+  const endB = Date.parse(eventB.end.dateTime)
+
+  return (Date.equals(startA, startB) && Date.equals(endA, endB))
+}
+
+function getEvents(id, calendar) {
+  return new Promise ( (resolve, reject) => {
+    calendar.events.list({
+      'calendarId': id,
+      'showDeleted': false,
+      'singleEvents': true,
+      'orderBy': 'startTime'
+    }, (err, events) => {
+      if (err) {
+        reject(events)
+      } else {
+        resolve(events.data.items)
+      }
     })
   })
 }
@@ -154,20 +215,24 @@ function createEvents(games) {
   games.forEach(game => {
     let gameDate = new Date(game.date)
     if (gameDate > new Date()) {
-      events.push({
-        'summary': `${game.home} - ${game.away}`,
-        'location': 'CDUP, CDUP, Porto',
-        'start': {
-          'dateTime': `${new Date(game.date).toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
-          'timeZone': 'Europe/Lisbon',
-        },
-        'end': {
-          'dateTime': `${new Date(game.date).addMinutes(70).toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
-          'timeZone': 'Europe/Lisbon',
-        }
-      })
+      events.push(createEvent(game))
     }
   })
 
   return events
+}
+
+function createEvent(game) {
+  return {
+    'summary': `${game.home} - ${game.away}`,
+    'location': 'CDUP, CDUP, Porto',
+    'start': {
+      'dateTime': `${new Date(game.date).toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
+      'timeZone': 'Europe/Lisbon',
+    },
+    'end': {
+      'dateTime': `${new Date(game.date).addMinutes(70).toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
+      'timeZone': 'Europe/Lisbon',
+    }
+  }
 }
