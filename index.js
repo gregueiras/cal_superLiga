@@ -13,22 +13,19 @@ const getGames = (auth) => rp(url)
     //success!
     const allGames = $('h5.widget-game-result__team-name', html)
     const allDates = $('time.widget-game-result__date', html)
+    const allResults = $('a.widget-game-result__score', html)
 
     let games = []
-    const upperLimit = Date.parse('t + 3d')
-    const lowerLimit = Date.parse('t - 1d')
   
     for (let index = 0; index < allDates.length; index++) {
       const team1 = allGames[index * 2]
       const team2 = allGames[index * 2 + 1]
       const date = allDates[index]
+      const result = allResults[index].childNodes
       
-      const game = parseGame(team1, team2, date)
+      const game = parseGame(team1, team2, date, result)
       
-      const parsedDate = Date.parse(game.date)
-      if (parsedDate.between(lowerLimit, upperLimit)) {
-        games.push(game)
-      }      
+      games.push(game)
     }
     
     getGamesCalendar(auth, addGames, games)
@@ -38,11 +35,16 @@ const getGames = (auth) => rp(url)
     console.log(err)
   })
 
-const parseGame = (team1, team2, date) => {
+const parseGame = (team1, team2, date, result) => {
+  const res1 = result[1].children[0].data.trim()
+  const res2 = result[5].children[0].data.trim()
+  const resultString = (res1 === '') ? '' : `${res1} - ${res2}`
+
   return {
     home: team1.children[0].data,
     away: team2.children[0].data,
-    date: date.attribs.content
+    date: date.attribs.content,
+    description: resultString
   }
 } 
 
@@ -137,7 +139,10 @@ function addGames(games, id, calendar) {
   
   getEvents(id, calendar).then( (events) => {
     newEvents.forEach(event => {
-      const existingEvent = events.filter(ev => ev.summary === event.summary)[0]
+      const existingEvent = events.filter(ev => {
+        const sameDates = compareDates(event, ev)
+        return sameDates && ev.summary === event.summary}
+      )[0]
       if (existingEvent) {
         processEvent(calendar, id, event, 'patch', existingEvent)
       } else {
@@ -164,8 +169,9 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
     })
   } else if (option === 'patch') {
     const sameDates = compareDates(existingEvent, event)
+    const sameDescription = compareDescription(existingEvent, event)
 
-    if (!sameDates) {
+    if (!sameDates && !sameDescription) {
       calendar.events.patch({
         calendarId: calendarId,
         eventId: existingEvent.id,
@@ -175,7 +181,7 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
           console.log('There was an error contacting the Calendar service: ' + err)
           return
         }
-        console.log('Event updated: %s', event.summary)
+        console.log('Event updated: %s - %s', event.summary, event.description)
       })
     } else {
       console.log('No changes to the event')
@@ -185,12 +191,23 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
 
 function compareDates(eventA, eventB) {
   const startA = Date.parse(eventA.start.dateTime)
+  const startALower = startA.add(-1).month()
+  const startAUpper = startA.add(+1).month()
   const startB = Date.parse(eventB.start.dateTime)
 
   const endA = Date.parse(eventA.end.dateTime)
+  const endALower = endA.add(-1).month()
+  const endAUpper = endA.add(+1).month()
   const endB = Date.parse(eventB.end.dateTime)
 
-  return (Date.equals(startA, startB) && Date.equals(endA, endB))
+  return (startB.between(startALower, startAUpper) && endB.between(endALower, endAUpper))
+}
+
+function compareDescription(game, event) {
+  const gameDescription = game.description
+  const eventDescription = event.description
+
+  return gameDescription === eventDescription
 }
 
 function getEvents(id, calendar) {
@@ -213,10 +230,7 @@ function getEvents(id, calendar) {
 function createEvents(games) {
   let events = []
   games.forEach(game => {
-    let gameDate = new Date(game.date)
-    if (gameDate > new Date()) {
-      events.push(createEvent(game))
-    }
+    events.push(createEvent(game))
   })
 
   return events
@@ -233,6 +247,7 @@ function createEvent(game) {
     'end': {
       'dateTime': `${new Date(game.date).addMinutes(70).toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
       'timeZone': 'Europe/Lisbon',
-    }
+    },
+    'description': game.description
   }
 }
