@@ -175,7 +175,7 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
     const sameDates = compareDates(existingEvent, event)
     const sameDescription = compareDescription(existingEvent, event)
 
-    if (!sameDates && !sameDescription) {
+    if (sameDates && !sameDescription) {
       calendar.events.patch(
         {
           calendarId: calendarId,
@@ -219,11 +219,11 @@ function compareDates(eventA, eventB) {
   )
 }
 
-function compareDescription(game, event) {
-  const gameDescription = game.description
+function compareDescription(event, game) {
   const eventDescription = event.description
+  const gameDescription = game.description
 
-  return gameDescription === eventDescription
+  return (!gameDescription) || gameDescription === eventDescription
 }
 
 function getEvents(id, calendar) {
