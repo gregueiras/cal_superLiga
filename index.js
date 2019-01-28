@@ -15,12 +15,14 @@ const SCOPES = ['https://www.googleapis.com/auth/calendar']
 // time.
 const TOKEN_PATH = 'token.json'
 
+console.log('%cStart', 'color: #0cbc00')
 // Load client secrets from a local file.
 fs.readFile('credentials.json', (err, content) => {
-  if (err) return console.log('Error loading client secret file:', err)
+  if (err) return console.error('Error loading client secret file:', err)
   // Authorize a client with credentials, then call the Google Calendar API.
   authorize(JSON.parse(content), getGames)
 })
+console.log('%cEnd', 'color: #0cbc00')
 
 const getGames = auth =>
   rp(url)
@@ -31,7 +33,7 @@ const getGames = auth =>
     })
     .catch(err => {
       //handle error
-      console.log(err)
+      console.error(err)
     })
 
 const parseGame = (team1, team2, date, result) => {
@@ -127,7 +129,7 @@ function getGamesCalendar(auth, callback, games) {
       const cal = result.data.items.find(cal => cal.summary.match(calendarName))
       callback(games, cal.id, calendar)
     } else {
-      console.log(err)
+      console.error(err)
     }
   })
 }
@@ -150,7 +152,7 @@ function addGames(games, id, calendar) {
       })
     })
     .catch(error => {
-      console.log(error)
+      console.error(error)
     })
 }
 
@@ -163,7 +165,7 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
       },
       err => {
         if (err) {
-          console.log(
+          console.error(
             'There was an error contacting the Calendar service: ' + err
           )
           return
@@ -184,7 +186,7 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
         },
         err => {
           if (err) {
-            console.log(
+            console.error(
               'There was an error contacting the Calendar service: ' + err
             )
             return
@@ -196,8 +198,6 @@ function processEvent(calendar, calendarId, event, option, existingEvent) {
           )
         }
       )
-    } else {
-      console.log('No changes to the event')
     }
   }
 }
