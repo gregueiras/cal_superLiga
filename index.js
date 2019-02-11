@@ -265,7 +265,7 @@ function createEvent(game) {
     },
     end: {
       dateTime: `${new Date(game.date)
-        .addMinutes(70)
+        .addMinutes(60)
         .toString('yyyy-MM-ddTHH:mm:ss-00:00')}`,
       timeZone: 'Europe/Lisbon'
     },
