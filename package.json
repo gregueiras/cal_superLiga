@@ -11,7 +11,7 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
     "datejs": "^1.0.0-rc3",
-    "googleapis": "^27.0.0",
+    "googleapis": "^39.1.0",
     "puppeteer": "^1.11.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.2"
